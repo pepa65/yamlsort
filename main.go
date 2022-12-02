@@ -1,9 +1,11 @@
 package main
 
 import (
+	"fmt"
 	"github.com/alecthomas/kong"
 	"gopkg.in/yaml.v2"
 	"os"
+	"reflect"
 	"sort"
 	"strings"
 )
@@ -80,9 +82,34 @@ func (s sortedYAML) Swap(i, j int) {
 func sortYAML(in yaml.MapSlice) sortedYAML {
 	sort.Sort(sortedYAML(in))
 	for _, v := range in {
+		// can't sort nil
+		if v.Value == nil {
+			continue
+		}
 		if obj, ok := v.Value.(yaml.MapSlice); ok {
 			sortedObj := sortYAML(obj)
 			v.Value = sortedObj
+			continue
+		}
+		// descend into list of objects and for now preserve the list order
+		if obj, ok := v.Value.([]interface{}); ok {
+			for idx, elem := range obj {
+				if mapSlice, isMapSlice := elem.(yaml.MapSlice); isMapSlice {
+					obj[idx] = sortYAML(mapSlice)
+				} else {
+					panic("# XXX list element isn't MapSlice assertable")
+				}
+			}
+			continue
+		}
+		// by now only basic types should be left over
+		t := reflect.TypeOf(v.Value).Kind()
+		switch t {
+		case reflect.Int, reflect.Float64, reflect.Bool, reflect.String:
+			// those are basic types, nothing to do
+			continue
+		default:
+			fmt.Printf("# XXX %s is %T (kind = %d). Sorting isn't implemented or possible yet\n", v.Key, v.Value, t)
 		}
 	}
 	return sortedYAML(in)
