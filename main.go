@@ -96,8 +96,6 @@ func sortYAML(in yaml.MapSlice) sortedYAML {
 			for idx, elem := range obj {
 				if mapSlice, isMapSlice := elem.(yaml.MapSlice); isMapSlice {
 					obj[idx] = sortYAML(mapSlice)
-				} else {
-					panic("# XXX list element isn't MapSlice assertable")
 				}
 			}
 			continue
