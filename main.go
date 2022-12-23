@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"github.com/alecthomas/kong"
 	"gopkg.in/yaml.v2"
+	"io"
 	"os"
+	"path/filepath"
 	"reflect"
 	"sort"
 	"strings"
@@ -15,12 +17,28 @@ var CLI struct {
 	} `cmd:"" embed:"" help:"Sort YAML"`
 	Infile  string `name:"infile" help:"input file. Defaults to stdin"`
 	Outfile string `name:"outfile" help:"output file. Defaults to stdout"`
+	InPlace string `name:"in-place" short:"i" optional:"" help:"sort the provided file in-place"`
 }
 
 func main() {
 	kongCTX := kong.Parse(&CLI)
+	// in-place sorting and Infile/Outfile are mutually exclusive
+	if strings.EqualFold(CLI.InPlace, "") && (!strings.EqualFold(CLI.Infile, "") || !strings.EqualFold(CLI.Outfile, "")) {
+		kongCTX.Printf("in-place sorting and Infile/Outfile are mutually exclusive")
+		os.Exit(1)
+	}
 	// set infile
 	infile := os.Stdin
+	if !strings.EqualFold(CLI.InPlace, "") {
+		var err error
+		if infile, err = os.Open(CLI.InPlace); err != nil {
+			kongCTX.Errorf("failed to open input file %s: %s", err)
+			os.Exit(1)
+		}
+		defer func() {
+			_ = infile.Close()
+		}()
+	}
 	if !(strings.EqualFold(CLI.Infile, "-") || strings.EqualFold(CLI.Infile, "")) {
 		var err error
 		if infile, err = os.Open(CLI.Infile); err != nil {
@@ -33,6 +51,23 @@ func main() {
 	}
 	// set outfile
 	outfile := os.Stdout
+	if !strings.EqualFold(CLI.InPlace, "") {
+		// create a temp file for in-place sorting and
+		var err error
+		dir := filepath.Dir(CLI.InPlace)
+		outfile, err = os.CreateTemp(dir, "outfile-*.yaml")
+		if err != nil {
+			kongCTX.Errorf("failed to create temp file: %s", err)
+			os.Exit(1)
+		}
+		defer func() {
+			_ = outfile.Close()
+		}()
+		defer func(name string) {
+			// it might be ok because of the renaming
+			_ = os.Remove(name)
+		}(outfile.Name())
+	}
 	if !(strings.EqualFold(CLI.Outfile, "-") || strings.EqualFold(CLI.Outfile, "")) {
 		var err error
 		if outfile, err = os.Create(CLI.Outfile); err != nil {
@@ -54,6 +89,18 @@ func main() {
 	if err := yaml.NewEncoder(outfile).Encode(out); err != nil {
 		kongCTX.Errorf("failed to encode sorted yaml: %s", err)
 		os.Exit(1)
+	}
+	// if in-place, copy content of the outfile (temp file) to infile
+	if !strings.EqualFold(CLI.InPlace, "") {
+		_, err := infile.Seek(0, 0)
+		if err != nil {
+			kongCTX.Errorf("failed to rewind infile: %s", err)
+			os.Exit(1)
+		}
+		if _, err := io.Copy(infile, outfile); err != nil {
+			kongCTX.Errorf("failed to copy temp file content to in-place file: %s", err)
+			os.Exit(1)
+		}
 	}
 }
 
