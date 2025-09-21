@@ -1,7 +1,8 @@
-module github.com/zwopir/yaml-sort
+module github.com/pepa65/yamlsort
 
-go 1.19
+go 1.23.0
 
-require github.com/alecthomas/kong v0.7.1
-
-require gopkg.in/yaml.v2 v2.4.0 // indirect
+require (
+	github.com/alecthomas/kong v1.12.1
+	gopkg.in/yaml.v2 v2.4.0
+)

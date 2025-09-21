@@ -2,38 +2,46 @@ package main
 
 import (
 	"fmt"
-	"github.com/alecthomas/kong"
-	"gopkg.in/yaml.v2"
 	"io"
 	"os"
 	"path/filepath"
 	"reflect"
 	"sort"
 	"strings"
+
+	"github.com/alecthomas/kong"
+	"gopkg.in/yaml.v2"
 )
+
+const version = "0.1.0"
 
 var CLI struct {
 	Sort struct {
-	} `cmd:"" embed:"" help:"Sort YAML"`
-	Infile  string `name:"infile" help:"input file. Defaults to stdin"`
-	Outfile string `name:"outfile" help:"output file. Defaults to stdout"`
-	InPlace string `name:"in-place" short:"i" optional:"" help:"sort the provided file in-place"`
+	} `cmd:"" embed:"" help:"Sort yaml-file recursively"`
+	Infile  string `name:"infile" help:"Input file [default: stdin]" type:"existingfile" arg:"" optional:""`
+	Outfile string `name:"outfile" short:"o" help:"Output file [default: stdout]" type:"path" placeholder:"FILE"`
+	InPlace string `name:"in-place" short:"i" optional:"" help:"In-place sort of the provided file" type:"existingfile" placeholder:"FILE"`
 }
 
 func main() {
-	kongCTX := kong.Parse(&CLI)
-	// in-place sorting and Infile/Outfile are mutually exclusive
-	if strings.EqualFold(CLI.InPlace, "") && (!strings.EqualFold(CLI.Infile, "") || !strings.EqualFold(CLI.Outfile, "")) {
-		kongCTX.Printf("in-place sorting and Infile/Outfile are mutually exclusive")
+	kongCTX := kong.Parse(&CLI, kong.Description("Sort yaml-file recursively"))
+	// No arguments shows help
+	if strings.EqualFold(CLI.InPlace, "") && strings.EqualFold(CLI.Infile, "") && strings.EqualFold(CLI.Outfile, "") {
+		kong.DefaultHelpPrinter(kong.HelpOptions{Compact: false}, kongCTX)
 		os.Exit(1)
 	}
-	// set infile
+
+	if !strings.EqualFold(CLI.InPlace, "") && (!strings.EqualFold(CLI.Infile, "") || !strings.EqualFold(CLI.Outfile, "")) {
+		kongCTX.Printf("In-place sorting and Infile/Outfile are mutually exclusive")
+		os.Exit(2)
+	}
+	// Set infile
 	infile := os.Stdin
 	if !strings.EqualFold(CLI.InPlace, "") {
 		var err error
-		if infile, err = os.Open(CLI.InPlace); err != nil {
-			kongCTX.Errorf("failed to open input file %s: %s", err)
-			os.Exit(1)
+		if infile, err = os.OpenFile(CLI.InPlace, os.O_RDWR, 0644); err != nil {
+			kongCTX.Errorf("Failed to open input file %s: %s", err)
+			os.Exit(3)
 		}
 		defer func() {
 			_ = infile.Close()
@@ -42,37 +50,37 @@ func main() {
 	if !(strings.EqualFold(CLI.Infile, "-") || strings.EqualFold(CLI.Infile, "")) {
 		var err error
 		if infile, err = os.Open(CLI.Infile); err != nil {
-			kongCTX.Errorf("failed to open input file %s: %s", err)
-			os.Exit(1)
+			kongCTX.Errorf("Failed to open input file %s: %s", err)
+			os.Exit(4)
 		}
 		defer func() {
 			_ = infile.Close()
 		}()
 	}
-	// set outfile
+	// Set outfile
 	outfile := os.Stdout
 	if !strings.EqualFold(CLI.InPlace, "") {
-		// create a temp file for in-place sorting and
+		// Create a temp file for in-place sorting
 		var err error
 		dir := filepath.Dir(CLI.InPlace)
 		outfile, err = os.CreateTemp(dir, "outfile-*.yaml")
 		if err != nil {
-			kongCTX.Errorf("failed to create temp file: %s", err)
-			os.Exit(1)
+			kongCTX.Errorf("Failed to create temp file: %s", err)
+			os.Exit(5)
 		}
 		defer func() {
 			_ = outfile.Close()
 		}()
 		defer func(name string) {
-			// it might be ok because of the renaming
+			// It might be ok because of the renaming
 			_ = os.Remove(name)
 		}(outfile.Name())
 	}
 	if !(strings.EqualFold(CLI.Outfile, "-") || strings.EqualFold(CLI.Outfile, "")) {
 		var err error
 		if outfile, err = os.Create(CLI.Outfile); err != nil {
-			kongCTX.Errorf("failed to create output file %s: %s", err)
-			os.Exit(1)
+			kongCTX.Errorf("Failed to create output file %s: %s", err)
+			os.Exit(6)
 		}
 		defer func() {
 			_ = outfile.Close()
@@ -82,24 +90,30 @@ func main() {
 	dec := yaml.NewDecoder(infile)
 	dec.SetStrict(true)
 	if err := dec.Decode(&in); err != nil {
-		kongCTX.Errorf("failed to decode input yaml: %s", err)
-		os.Exit(1)
+		kongCTX.Errorf("Failed to decode input yaml: %s", err)
+		os.Exit(7)
 	}
 	out := sortYAML(in)
 	if err := yaml.NewEncoder(outfile).Encode(out); err != nil {
-		kongCTX.Errorf("failed to encode sorted yaml: %s", err)
-		os.Exit(1)
+		kongCTX.Errorf("Failed to encode sorted yaml: %s", err)
+		os.Exit(8)
 	}
-	// if in-place, copy content of the outfile (temp file) to infile
+	//_ = outfile.Sync()
+	// If in-place, copy content of the outfile (temp file) to infile
 	if !strings.EqualFold(CLI.InPlace, "") {
-		_, err := infile.Seek(0, 0)
+		_, err := infile.Seek(0, io.SeekStart)
 		if err != nil {
-			kongCTX.Errorf("failed to rewind infile: %s", err)
-			os.Exit(1)
+			kongCTX.Errorf("Failed to rewind infile: %s", err)
+			os.Exit(9)
+		}
+		_, err = outfile.Seek(0, io.SeekStart)
+		if err != nil {
+			kongCTX.Errorf("Failed to rewind outfile: %s", err)
+			os.Exit(10)
 		}
 		if _, err := io.Copy(infile, outfile); err != nil {
-			kongCTX.Errorf("failed to copy temp file content to in-place file: %s", err)
-			os.Exit(1)
+			kongCTX.Errorf("Failed to copy temp file content to in-place file: %s", err)
+			os.Exit(11)
 		}
 	}
 }
@@ -113,11 +127,11 @@ func (s sortedYAML) Len() int {
 func (s sortedYAML) Less(i, j int) bool {
 	iStr, ok := s[i].Key.(string)
 	if !ok {
-		panic("key is not string assertable")
+		panic("Key is not string assertable")
 	}
 	jStr, ok := s[j].Key.(string)
 	if !ok {
-		panic("key is not string assertable")
+		panic("Key is not string assertable")
 	}
 	return strings.Compare(iStr, jStr) < 0
 }
@@ -129,7 +143,7 @@ func (s sortedYAML) Swap(i, j int) {
 func sortYAML(in yaml.MapSlice) sortedYAML {
 	sort.Sort(sortedYAML(in))
 	for _, v := range in {
-		// can't sort nil
+		// Can't sort nil
 		if v.Value == nil {
 			continue
 		}
@@ -138,7 +152,7 @@ func sortYAML(in yaml.MapSlice) sortedYAML {
 			v.Value = sortedObj
 			continue
 		}
-		// descend into list of objects and for now preserve the list order
+		// Descend into list of objects and for now preserve the list order
 		if obj, ok := v.Value.([]interface{}); ok {
 			for idx, elem := range obj {
 				if mapSlice, isMapSlice := elem.(yaml.MapSlice); isMapSlice {
@@ -147,11 +161,11 @@ func sortYAML(in yaml.MapSlice) sortedYAML {
 			}
 			continue
 		}
-		// by now only basic types should be left over
+		// By now only basic types should be left over
 		t := reflect.TypeOf(v.Value).Kind()
 		switch t {
 		case reflect.Int, reflect.Float64, reflect.Bool, reflect.String:
-			// those are basic types, nothing to do
+			// Those are basic types, nothing to do
 			continue
 		default:
 			fmt.Printf("# XXX %s is %T (kind = %d). Sorting isn't implemented or possible yet\n", v.Key, v.Value, t)
