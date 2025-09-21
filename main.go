@@ -13,7 +13,18 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
-const version = "0.1.1"
+const version = "0.1.2"
+const name = "yamlsort"
+
+type VersionFlag string
+
+func (v VersionFlag) Decode(_ *kong.DecodeContext) error {return nil}
+func (v VersionFlag) IsBool() bool {return true}
+func (v VersionFlag) BeforeApply(app *kong.Kong) error {
+	fmt.Println(name + " " + version)
+	app.Exit(0)
+	return nil
+}
 
 var CLI struct {
 	Sort struct {
@@ -21,10 +32,11 @@ var CLI struct {
 	Infile  string `name:"infile" help:"Input file [default: stdin]" type:"existingfile" arg:"" optional:""`
 	Outfile string `name:"outfile" short:"o" help:"Output file [default: stdout]" type:"path" placeholder:"FILE"`
 	InPlace string `name:"in-place" short:"i" optional:"" help:"In-place sort of the provided file" type:"existingfile" placeholder:"FILE"`
+	Version VersionFlag `help:"Display version" name:"version" short:"V"`
 }
 
 func main() {
-	kongCTX := kong.Parse(&CLI, kong.Description("Sort yaml-file recursively"))
+	kongCTX := kong.Parse(&CLI, kong.Description("Sort yaml-file recursively"), kong.Vars{"version": version})
 	// No arguments shows help
 	if strings.EqualFold(CLI.InPlace, "") && strings.EqualFold(CLI.Infile, "") && strings.EqualFold(CLI.Outfile, "") {
 		kong.DefaultHelpPrinter(kong.HelpOptions{Compact: false}, kongCTX)

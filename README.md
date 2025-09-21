@@ -1,4 +1,4 @@
-# yamlsort 0.1.1
+# yamlsort 0.1.2
 
 ## Sort yaml-file recursively
 * Repo: [github.com/pepa65/yamlsort](https://github.com/pepa65/yamlsort)
@@ -30,11 +30,16 @@ CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -ldflags="-s -w" -o yamlsort.ex
 
 ## Usage
 ```
-Usage: yamlsort [flags]
+Usage: yamlsort [<infile>] [flags]
+
+Sort yaml-file recursively
+
+Arguments:
+  [<infile>]    Input file [default: stdin]
 
 Flags:
-  -h, --help               Show context-sensitive help.
-  -I, --infile=STRING      Input file [default: stdin]
-  -O, --outfile=STRING     Output file [default: stdout]
-  -i, --in-place=STRING    In-place sort of the provided file
+  -h, --help             Show context-sensitive help.
+  -o, --outfile=FILE     Output file [default: stdout]
+  -i, --in-place=FILE    In-place sort of the provided file
+  -V, --version          Display version
 ```
