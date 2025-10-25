@@ -13,14 +13,14 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
-const version = "0.1.2"
+const version = "0.1.3"
 const name = "yamlsort"
 
-type VersionFlag string
+type VersionStr string
 
-func (v VersionFlag) Decode(_ *kong.DecodeContext) error {return nil}
-func (v VersionFlag) IsBool() bool {return true}
-func (v VersionFlag) BeforeApply(app *kong.Kong) error {
+func (v VersionStr) Decode(_ *kong.DecodeContext) error { return nil }
+func (v VersionStr) IsBool() bool                       { return true }
+func (v VersionStr) BeforeApply(app *kong.Kong) error {
 	fmt.Println(name + " " + version)
 	app.Exit(0)
 	return nil
@@ -29,10 +29,10 @@ func (v VersionFlag) BeforeApply(app *kong.Kong) error {
 var CLI struct {
 	Sort struct {
 	} `cmd:"" embed:"" help:"Sort yaml-file recursively"`
-	Infile  string `name:"infile" help:"Input file [default: stdin]" type:"existingfile" arg:"" optional:""`
-	Outfile string `name:"outfile" short:"o" help:"Output file [default: stdout]" type:"path" placeholder:"FILE"`
-	InPlace string `name:"in-place" short:"i" optional:"" help:"In-place sort of the provided file" type:"existingfile" placeholder:"FILE"`
-	Version VersionFlag `help:"Display version" name:"version" short:"V"`
+	Infile  string     `name:"infile" help:"Input file [default: stdin]" type:"existingfile" arg:"" optional:""`
+	Outfile string     `name:"outfile" short:"o" help:"Output file [default: stdout]" type:"path" placeholder:"FILE"`
+	InPlace string     `name:"in-place" short:"i" optional:"" help:"In-place sort of the provided file" type:"existingfile" placeholder:"FILE"`
+	Version VersionStr `help:"Display version" name:"version" short:"V"`
 }
 
 func main() {

@@ -1,4 +1,4 @@
-# yamlsort 0.1.2
+# yamlsort 0.1.3
 
 ## Sort yaml-file recursively
 * Repo: [github.com/pepa65/yamlsort](https://github.com/pepa65/yamlsort)
