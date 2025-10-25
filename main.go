@@ -13,8 +13,10 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
-const version = "0.1.3"
-const name = "yamlsort"
+const (
+	version = "0.1.3"
+	name    = "yamlsort"
+)
 
 type VersionStr string
 
@@ -27,8 +29,7 @@ func (v VersionStr) BeforeApply(app *kong.Kong) error {
 }
 
 var CLI struct {
-	Sort struct {
-	} `cmd:"" embed:"" help:"Sort yaml-file recursively"`
+	Sort    struct{}   `cmd:"" embed:"" help:"Sort yaml-file recursively"`
 	Infile  string     `name:"infile" help:"Input file [default: stdin]" type:"existingfile" arg:"" optional:""`
 	Outfile string     `name:"outfile" short:"o" help:"Output file [default: stdout]" type:"path" placeholder:"FILE"`
 	InPlace string     `name:"in-place" short:"i" optional:"" help:"In-place sort of the provided file" type:"existingfile" placeholder:"FILE"`
@@ -51,7 +52,7 @@ func main() {
 	infile := os.Stdin
 	if !strings.EqualFold(CLI.InPlace, "") {
 		var err error
-		if infile, err = os.OpenFile(CLI.InPlace, os.O_RDWR, 0644); err != nil {
+		if infile, err = os.OpenFile(CLI.InPlace, os.O_RDWR, 0o644); err != nil {
 			kongCTX.Errorf("Failed to open input file %s: %s", err)
 			os.Exit(3)
 		}
