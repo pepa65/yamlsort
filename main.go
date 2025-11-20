@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	version = "0.1.3"
+	version = "0.1.4"
 	name    = "yamlsort"
 )
 
@@ -53,7 +53,7 @@ func main() {
 	if !strings.EqualFold(CLI.InPlace, "") {
 		var err error
 		if infile, err = os.OpenFile(CLI.InPlace, os.O_RDWR, 0o644); err != nil {
-			kongCTX.Errorf("Failed to open input file %s: %s", err)
+			kongCTX.Errorf("Failed to open input file %s: %s", CLI.InPlace, err)
 			os.Exit(3)
 		}
 		defer func() {
@@ -63,7 +63,7 @@ func main() {
 	if !(strings.EqualFold(CLI.Infile, "-") || strings.EqualFold(CLI.Infile, "")) {
 		var err error
 		if infile, err = os.Open(CLI.Infile); err != nil {
-			kongCTX.Errorf("Failed to open input file %s: %s", err)
+			kongCTX.Errorf("Failed to open input file %s: %s", CLI.Infile, err)
 			os.Exit(4)
 		}
 		defer func() {
@@ -92,7 +92,7 @@ func main() {
 	if !(strings.EqualFold(CLI.Outfile, "-") || strings.EqualFold(CLI.Outfile, "")) {
 		var err error
 		if outfile, err = os.Create(CLI.Outfile); err != nil {
-			kongCTX.Errorf("Failed to create output file %s: %s", err)
+			kongCTX.Errorf("Failed to create output file %s: %s", CLI.Outfile, err)
 			os.Exit(6)
 		}
 		defer func() {
